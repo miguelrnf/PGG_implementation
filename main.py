@@ -31,7 +31,6 @@ print("Spite: ", trbl)
 r = 0.4
 
 # loners payoff
-
 # Allocate array to save the time evolution of strategies
 strategies = np.zeros(shape=(rounds,3))
 
