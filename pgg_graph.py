@@ -4,46 +4,11 @@ Created on Wed Feb  6 12:42:12 2019
 
 @author: paul
 """
+import random
 
 import numpy as np
-
-
-class player(object):
-    def __init__(self, strategy=None):
-        """
-        The player class holds all variables that belong to one person.
-        Namely the current strategy and the last payoff.
-
-        :type strategy: int
-        :param strategy: The strategies are encoded by integers.
-        Where 0 represents a cooperator, 1 a defector and 2 a loner
-
-        """
-
-        if strategy == None:
-            self.__strategy = np.random.randint(0, 3)
-        else:
-            self.__strategy = strategy
-
-        self.__payoff = 0.
-
-    @property
-    def strategy(self):
-        return self.__strategy
-
-    @strategy.setter
-    def strategy(self, value):
-        assert value in [0, 1, 2]
-        self.__strategy = value
-
-    @property
-    def payoff(self):
-        return self.__payoff
-
-    @payoff.setter
-    def payoff(self, value):
-        self.__payoff = value
-
+import networkx as nx
+import matplotlib.pyplot as plt
 
 class generalModel(object):
     """
@@ -51,11 +16,7 @@ class generalModel(object):
     that are shared thoughout the different models
     """
 
-    @property
-    def players(self):
-        return self._players
-
-    def _assignPayoff(self, player_instance, ncooperators, ndefectors, ntroubles):
+    def _assignPayoff(self, nodeIndex, ncooperators, ndefectors, ntroubles):
         """
         assign a payoff o one player of a public goods game
 
@@ -64,22 +25,23 @@ class generalModel(object):
         :nparticipants: number of participants in the public goods game
         """
 
-        assert isinstance(player_instance, player)
 
         spite_factor = 0.3
 
         # assign payoff depending on the strategy played by the player
-        if player_instance.strategy == 0:
-            player_instance.payoff += - self.c + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
+        if self._players.nodes[nodeIndex]["Strategy"] == 0:
+            self._players.nodes[nodeIndex]["Last Payoff"] += - self.c + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
 
-        elif player_instance.strategy == 1:
-            player_instance.payoff += self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
+        elif self._players.nodes[nodeIndex]["Strategy"] == 1:
+            self._players.nodes[nodeIndex]["Last Payoff"] += self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
 
-        elif player_instance.strategy == 2:  # TODO Change to troubleshoot
-            player_instance.payoff += - self.c * spite_factor + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
+        elif self._players.nodes[nodeIndex]["Strategy"] == 2:
+            self._players.nodes[nodeIndex]["Last Payoff"] += - self.c * spite_factor + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
+
+        self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
     def _revisionProtocol(self, payoff1, payoff2):
         change_likelihood = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
@@ -87,7 +49,7 @@ class generalModel(object):
 
 
 class bucketModel(generalModel):
-    def __init__(self, nplayers, coop, defec, trouble):
+    def __init__(self, nplayers, coop, defec, trouble, nParticipants):
         """
         The bucket model class holds the variables that define a public goods game in
         a mean field and the methods to play the public goods game
@@ -95,9 +57,9 @@ class bucketModel(generalModel):
         :param nplayers: number of total players
         """
         self.nplayers = nplayers
-        self.__initBucket(coop, defec, trouble)
+        self.__initBucket(coop, defec, trouble, nParticipants)
 
-    def __initBucket(self, coop, defec, trouble):
+    def __initBucket(self, coop, defec, trouble, nParticipants):
         """
         initialize strategies with a equal propability for each strategy when inital_distribution is None.
         Or using the initial distribution.
@@ -105,15 +67,22 @@ class bucketModel(generalModel):
 
         assert (coop + defec + trouble) == 1.
 
+        graph = nx.barabasi_albert_graph(self.nplayers, nParticipants)
+
         pc = coop
         pd = defec
         pt = trouble
 
         strategies = np.random.choice([0, 1, 2], size=self.nplayers, replace=True, p=[pc, pd, pt])
+        for s in range(self.nplayers):
+            graph.nodes[s]["Strategy"] = strategies[s]
+            graph.nodes[s]["Knowledge"] = random.uniform(0, 100)
+            graph.nodes[s]["Last Payoff"] = 0
 
-        self._players = [player(strategies[i]) for i in range(self.nplayers)]
+        self._players = graph
+        self.draw_graph()
 
-    def playGame(self, nparticipants, c, r):
+    def playGame(self, game, c, r):
         """
         play one time the public goods game
 
@@ -135,35 +104,39 @@ class bucketModel(generalModel):
         self.c = c
         self.r = r
 
-        # choose randomely players
-        random_player_indeces = np.random.choice(self.nplayers, nparticipants, replace=False)
 
         # count the cooperators and defectors
         nc = 0
         nd = 0
+        nt = 0
 
-        for i in random_player_indeces:
-            if self.players[i].strategy == 0:
+        participants = list(self._players.edges(game))
+        participants.append((game, game))
+        for node in participants:
+            if self._players.nodes[node[1]]["Strategy"] == 0:
                 nc += 1
-            elif self.players[i].strategy == 1:
+            elif self._players.nodes[node[1]]["Strategy"] == 1:
                 nd += 1
-        nt = nparticipants - nc - nd
+            elif self._players.nodes[node[1]]["Strategy"] == 2:
+                nt += 1
 
         # assign payoffs
-        for i in random_player_indeces:
-            self._assignPayoff(self.players[i], nc, nd, nt)
+        for node in participants:
+            self._assignPayoff(node[1], nc, nd, nt)
 
-    def reviseStragey(self, player_index, tau=0.1, K=0.1):
+    def reviseStrategy(self, player_index, tau=0.1, K=0.1):
         """
         revision protocol for player1 to change his strategy to the strategy of player2
 
         :param player1,player2: instance of class player
         """
         # choose a randomely players
-        random_player_index = np.random.choice(self.nplayers)
+        size = len(self._players.edges(player_index))
+        random_player_index = np.random.choice(size)
+        random_player_index = list(self._players.edges(player_index))[random_player_index][1]
 
-        payoff1 = self.players[player_index].payoff
-        payoff2 = self.players[random_player_index].payoff
+        payoff1 = self._players.nodes[player_index]["Last Payoff"]
+        payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
 
         self.tau = tau
         self.K = K
@@ -173,21 +146,37 @@ class bucketModel(generalModel):
         change = np.random.choice([False, True], p=[1 - p, p])
 
         if change:
-            self.players[player_index].strategy = self.players[random_player_index].strategy
+            self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
 
     def clearPayoffs(self):
         for i in range(self.nplayers):
-            self.players[i].payoff = 0
+            self._players.nodes[i]["Last Payoff"] = 0
 
     def countStrategies(self):
         nc = 0
         nd = 0
+        nt = 0
 
-        for i in range(self.nplayers):
-            if self.players[i].strategy == 0:
+        for node in range(self.nplayers):
+            if self._players.nodes[node]["Strategy"] == 0:
                 nc += 1
-            elif self.players[i].strategy == 1:
+            elif self._players.nodes[node]["Strategy"] == 1:
                 nd += 1
-        nt = self.nplayers - nc - nd
+            elif self._players.nodes[node]["Strategy"] == 2:
+                nt += 1
 
         return nc, nd, nt
+
+    def draw_graph(self):
+        colourMap = []
+        for s in range(self.nplayers):
+            if self._players.nodes[s]["Strategy"] == 0:
+                colourMap.append('blue')
+            elif self._players.nodes[s]["Strategy"] == 1:
+                colourMap.append('orange')
+            elif self._players.nodes[s]["Strategy"] == 2:
+                colourMap.append('green')
+
+        pos = nx.kamada_kawai_layout(self._players)  # Seed for reproducible layout
+        nx.draw(self._players, pos, node_color=colourMap)
+        plt.show()
