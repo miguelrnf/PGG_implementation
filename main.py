@@ -6,7 +6,7 @@ from pgg_graph import bucketModel
 
 
 # total number of players
-nplayers = 50
+nplayers = 100
 
 # rounds each player (approximately) plays
 rounds = 20
@@ -36,7 +36,7 @@ r = 1.7
 # Allocate array to save the time evolution of strategies
 strategies = np.zeros(shape=(rounds,3))
 
-bm = bucketModel(nplayers, cop, defe, trbl, nparticipants)
+bm = bucketModel(nplayers, 0.33, 0.33, 0.34, nparticipants)
 
 for j in range(rounds):
 

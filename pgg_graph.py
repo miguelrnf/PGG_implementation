@@ -29,7 +29,7 @@ class generalModel(object):
 
         spite_factor = 0.3
         rep_factor_c = 1
-        rep_factor_d = -0.2
+        rep_factor_d = -0.5
         rep_factor_s = -1
 
         # assign payoff depending on the strategy played by the player
@@ -50,8 +50,11 @@ class generalModel(object):
 
         self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
-    def _revisionProtocol(self, payoff1, payoff2):
-        change_likelihood = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
+    def _revisionProtocol(self, payoff1, payoff2, reputation1, reputation2):
+        w_payoff = 0.7
+        p_payoff = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
+        p_reputation = 1 / (1 + np.exp(reputation1 - reputation2 + self.tau) / self.K)
+        change_likelihood = w_payoff * p_payoff + (1 - w_payoff) * p_reputation
         return change_likelihood
 
 
@@ -146,11 +149,13 @@ class bucketModel(generalModel):
 
             payoff1 = self._players.nodes[player_index]["Last Payoff"]
             payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
+            reputation1 = self._players.nodes[player_index]["Reputation"]
+            reputation2 = self._players.nodes[random_player_index]["Reputation"]
 
             self.tau = tau
             self.K = K
 
-            p = self._revisionProtocol(payoff1, payoff2)
+            p = self._revisionProtocol(payoff1, payoff2, reputation1, reputation2)
 
             change = np.random.choice([False, True], p=[1 - p, p])
 
@@ -162,7 +167,7 @@ class bucketModel(generalModel):
             self._players.nodes[i]["Last Payoff"] = 0
 
     def cutReputations(self, node):
-        cut_factor = 6.5
+        cut_factor = 5
         rep_1 = self._players.nodes[node]["Reputation"]
         to_remove = []
         for u, v in self._players.edges(node):
