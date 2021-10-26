@@ -10,6 +10,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
+
 class generalModel(object):
     """
     This is the base class for different public goods game model. It holds methods and properties
