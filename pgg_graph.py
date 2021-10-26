@@ -167,8 +167,7 @@ class bucketModel(generalModel):
         to_remove = []
         for u, v in self._players.edges(node):
             rep_2 = self._players.nodes[v]["Reputation"]
-            if abs(rep_1 - rep_2) >= cut_factor and self._players.nodes[node]["Strategy"] !=\
-                    self._players.nodes[v]["Strategy"]:
+            if abs(rep_1 - rep_2) >= cut_factor and self._players.nodes[v]["Strategy"] != 0:
                 to_remove.append(v)
 
         for v in to_remove:
