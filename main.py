@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pgg_graph import bucketModel
 
+
 # total number of players
 nplayers = 50
 
@@ -44,8 +45,10 @@ for j in range(rounds):
 
     for i in range(nplayers):
         bm.reviseStrategy(i)
+        bm.cutReputations(i)
 
     bm.clearPayoffs()
+
 
     strategies[j, :] = bm.countStrategies()
 

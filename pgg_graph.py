@@ -28,19 +28,25 @@ class generalModel(object):
 
 
         spite_factor = 0.3
+        rep_factor_c = 1
+        rep_factor_d = -0.2
+        rep_factor_s = -1
 
         # assign payoff depending on the strategy played by the player
         if self._players.nodes[nodeIndex]["Strategy"] == 0:
             self._players.nodes[nodeIndex]["Last Payoff"] += - self.c + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
+            self._players.nodes[nodeIndex]["Reputation"] += rep_factor_c
 
         elif self._players.nodes[nodeIndex]["Strategy"] == 1:
             self._players.nodes[nodeIndex]["Last Payoff"] += self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
+            self._players.nodes[nodeIndex]["Reputation"] += rep_factor_d
 
         elif self._players.nodes[nodeIndex]["Strategy"] == 2:
             self._players.nodes[nodeIndex]["Last Payoff"] += - self.c * spite_factor + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
                         ncooperators + ndefectors + ntroubles)
+            self._players.nodes[nodeIndex]["Reputation"] += rep_factor_s
 
         self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
@@ -79,6 +85,7 @@ class bucketModel(generalModel):
             graph.nodes[s]["Strategy"] = strategies[s]
             graph.nodes[s]["Knowledge"] = random.uniform(0, 100)
             graph.nodes[s]["Last Payoff"] = 0
+            graph.nodes[s]["Reputation"] = 0
 
         self._players = graph
         self.draw_graph()
@@ -133,25 +140,40 @@ class bucketModel(generalModel):
         """
         # choose a randomely players
         size = len(self._players.edges(player_index))
-        random_player_index = np.random.choice(size)
-        random_player_index = list(self._players.edges(player_index))[random_player_index][1]
+        if size > 0:
+            random_player_index = np.random.choice(size)
+            random_player_index = list(self._players.edges(player_index))[random_player_index][1]
 
-        payoff1 = self._players.nodes[player_index]["Last Payoff"]
-        payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
+            payoff1 = self._players.nodes[player_index]["Last Payoff"]
+            payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
 
-        self.tau = tau
-        self.K = K
+            self.tau = tau
+            self.K = K
 
-        p = self._revisionProtocol(payoff1, payoff2)
+            p = self._revisionProtocol(payoff1, payoff2)
 
-        change = np.random.choice([False, True], p=[1 - p, p])
+            change = np.random.choice([False, True], p=[1 - p, p])
 
-        if change:
-            self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
+            if change:
+                self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
 
     def clearPayoffs(self):
         for i in range(self.nplayers):
             self._players.nodes[i]["Last Payoff"] = 0
+
+    def cutReputations(self, node):
+        cut_factor = 6.5
+        rep_1 = self._players.nodes[node]["Reputation"]
+        to_remove = []
+        for u, v in self._players.edges(node):
+            rep_2 = self._players.nodes[v]["Reputation"]
+            if abs(rep_1 - rep_2) >= cut_factor and self._players.nodes[node]["Strategy"] !=\
+                    self._players.nodes[v]["Strategy"]:
+                to_remove.append(v)
+
+        for v in to_remove:
+            self._players.remove_edge(node, v)
+
 
     def countStrategies(self):
         nc = 0
@@ -178,6 +200,6 @@ class bucketModel(generalModel):
             elif self._players.nodes[s]["Strategy"] == 2:
                 colourMap.append('green')
 
-        pos = nx.kamada_kawai_layout(self._players)  # Seed for reproducible layout
+        pos = nx.spring_layout(self._players)  # Seed for reproducible layout
         nx.draw(self._players, pos, node_color=colourMap)
         plt.show()
