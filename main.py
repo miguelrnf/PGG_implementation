@@ -42,10 +42,11 @@ for j in range(rounds):
 
     for game in range(nplayers):
         bm.playGame(game, c, r)
+        bm.cutReputations(game)
 
     for i in range(nplayers):
         bm.reviseStrategy(i)
-        bm.cutReputations(i)
+
 
     bm.clearPayoffs()
 

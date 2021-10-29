@@ -163,8 +163,9 @@ class bucketModel(generalModel):
                 self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
 
     def clearPayoffs(self):
-        for i in range(self.nplayers):
+        for i in self._players:
             self._players.nodes[i]["Last Payoff"] = 0
+
 
     def cutReputations(self, node):
         cut_factor = 5
@@ -196,7 +197,7 @@ class bucketModel(generalModel):
 
     def draw_graph(self):
         colourMap = []
-        for s in range(self.nplayers):
+        for s in self._players:
             if self._players.nodes[s]["Strategy"] == 0:
                 colourMap.append('blue')
             elif self._players.nodes[s]["Strategy"] == 1:
