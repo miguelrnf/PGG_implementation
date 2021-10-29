@@ -166,7 +166,6 @@ class bucketModel(generalModel):
         for i in self._players:
             self._players.nodes[i]["Last Payoff"] = 0
 
-
     def cutReputations(self, node):
         cut_factor = 5
         rep_1 = self._players.nodes[node]["Reputation"]
@@ -179,13 +178,12 @@ class bucketModel(generalModel):
         for v in to_remove:
             self._players.remove_edge(node, v)
 
-
     def countStrategies(self):
         nc = 0
         nd = 0
         nt = 0
 
-        for node in range(self.nplayers):
+        for node in self._players:
             if self._players.nodes[node]["Strategy"] == 0:
                 nc += 1
             elif self._players.nodes[node]["Strategy"] == 1:
@@ -206,5 +204,13 @@ class bucketModel(generalModel):
                 colourMap.append('green')
 
         pos = nx.spring_layout(self._players)  # Seed for reproducible layout
-        nx.draw(self._players, pos, node_color=colourMap)
+        plt.figure(1, figsize=(20, 20))
+        nx.draw(self._players, pos, node_color=colourMap, node_size=60)
         plt.show()
+
+    def rm_edgeless_and_draw_graph(self, degree):
+        to_be_removed = [x for x in self._players.nodes() if self._players.degree(x) < degree]
+
+        for x in to_be_removed:
+            self._players.remove_node(x)
+        self.draw_graph()

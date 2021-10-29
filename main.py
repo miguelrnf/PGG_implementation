@@ -46,7 +46,7 @@ for j in range(rounds):
 
     for i in range(nplayers):
         bm.reviseStrategy(i)
-
+        bm.cutReputations(i)
 
     bm.clearPayoffs()
 
@@ -63,4 +63,4 @@ plt.ylim(0, nplayers)
 plt.xlim(0, rounds)
 plt.legend()
 plt.show()
-bm.draw_graph()
+bm.rm_edgeless_and_draw_graph(5)
