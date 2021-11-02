@@ -16,7 +16,7 @@ class generalModel(object):
     that are shared thoughout the different models
     """
 
-    def _assignPayoff(self, nodeIndex, ncooperators, ndefectors, ntroubles):
+    def _assignPayoff(self, participants):
         """
         assign a payoff o one player of a public goods game
 
@@ -28,20 +28,30 @@ class generalModel(object):
 
         spite_factor = 0.3
 
-        # assign payoff depending on the strategy played by the player
-        if self._players.nodes[nodeIndex]["Strategy"] == 0:
-            self._players.nodes[nodeIndex]["Last Payoff"] += - self.c + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+        total_cost = 0
 
-        elif self._players.nodes[nodeIndex]["Strategy"] == 1:
-            self._players.nodes[nodeIndex]["Last Payoff"] += self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+        for node in participants:
+            nodeIndex = node[1]
+            if self._players.nodes[nodeIndex]["Strategy"] == 2:
+                total_cost -= self._players.nodes[nodeIndex]["Cost"]
+                continue
+            total_cost += self._players.nodes[nodeIndex]["Cost"]
 
-        elif self._players.nodes[nodeIndex]["Strategy"] == 2:
-            self._players.nodes[nodeIndex]["Last Payoff"] += - self.c * spite_factor + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+        pool_amount = total_cost * self.r
 
-        self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
+        for node in participants:
+            nodeIndex = node[1]
+            # assign payoff depending on the strategy played by the player
+            if self._players.nodes[nodeIndex]["Strategy"] == 0:
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] + (pool_amount/len(participants))
+
+            elif self._players.nodes[nodeIndex]["Strategy"] == 1:
+                self._players.nodes[nodeIndex]["Last Payoff"] += pool_amount/len(participants)
+
+            elif self._players.nodes[nodeIndex]["Strategy"] == 2:
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] * spite_factor + (pool_amount/len(participants))
+
+            self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
     def _revisionProtocol(self, payoff1, payoff2):
         change_likelihood = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
@@ -49,7 +59,7 @@ class generalModel(object):
 
 
 class bucketModel(generalModel):
-    def __init__(self, nplayers, coop, defec, trouble, nParticipants):
+    def __init__(self, nplayers, coop, defec, trouble, nParticipants, c):
         """
         The bucket model class holds the variables that define a public goods game in
         a mean field and the methods to play the public goods game
@@ -57,9 +67,9 @@ class bucketModel(generalModel):
         :param nplayers: number of total players
         """
         self.nplayers = nplayers
-        self.__initBucket(coop, defec, trouble, nParticipants)
+        self.__initBucket(coop, defec, trouble, nParticipants, c)
 
-    def __initBucket(self, coop, defec, trouble, nParticipants):
+    def __initBucket(self, coop, defec, trouble, nParticipants, c):
         """
         initialize strategies with a equal propability for each strategy when inital_distribution is None.
         Or using the initial distribution.
@@ -78,6 +88,10 @@ class bucketModel(generalModel):
             graph.nodes[s]["Strategy"] = strategies[s]
             graph.nodes[s]["Knowledge"] = random.uniform(0, 100)
             graph.nodes[s]["Last Payoff"] = 0
+            if strategies[s] == 1:
+                graph.nodes[s]["Cost"] = 0
+                continue
+            graph.nodes[s]["Cost"] = c / (graph.degree[s] + 1)
 
         self._players = graph
         self.draw_graph()
@@ -112,17 +126,10 @@ class bucketModel(generalModel):
 
         participants = list(self._players.edges(game))
         participants.append((game, game))
-        for node in participants:
-            if self._players.nodes[node[1]]["Strategy"] == 0:
-                nc += 1
-            elif self._players.nodes[node[1]]["Strategy"] == 1:
-                nd += 1
-            elif self._players.nodes[node[1]]["Strategy"] == 2:
-                nt += 1
+
 
         # assign payoffs
-        for node in participants:
-            self._assignPayoff(node[1], nc, nd, nt)
+        self._assignPayoff(participants)
 
     def reviseStrategy(self, player_index, tau=0.1, K=0.1):
         """
