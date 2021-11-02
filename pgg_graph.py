@@ -4,6 +4,7 @@ Created on Wed Feb  6 12:42:12 2019
 
 @author: paul
 """
+import math
 import random
 
 import numpy as np
@@ -37,25 +38,27 @@ class generalModel(object):
                 continue
             total_cost += self._players.nodes[nodeIndex]["Cost"]
 
-        pool_amount = total_cost * self.r
+        pool_amount = (total_cost * self.r) / len(participants)
 
         for node in participants:
             nodeIndex = node[1]
             # assign payoff depending on the strategy played by the player
             if self._players.nodes[nodeIndex]["Strategy"] == 0:
-                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] + (pool_amount/len(participants))
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] + pool_amount
 
             elif self._players.nodes[nodeIndex]["Strategy"] == 1:
-                self._players.nodes[nodeIndex]["Last Payoff"] += pool_amount/len(participants)
+                self._players.nodes[nodeIndex]["Last Payoff"] += pool_amount
 
             elif self._players.nodes[nodeIndex]["Strategy"] == 2:
-                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] * spite_factor + (pool_amount/len(participants))
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] * spite_factor + pool_amount + self._players.nodes[nodeIndex]["Cost"]
 
             self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
     def _revisionProtocol(self, payoff1, payoff2):
-        change_likelihood = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
-        return change_likelihood
+        if payoff1 > payoff2:
+            return 0
+
+        return (payoff2 - payoff1) / self.M
 
 
 class bucketModel(generalModel):
@@ -111,18 +114,11 @@ class bucketModel(generalModel):
         :param sigma: The payoff for the loner
 
         """
-        # check if r and sigma are chosen correctly
-        #assert (1 < r and r < nparticipants)
 
         # set game properties
         self.c = c
         self.r = r
 
-
-        # count the cooperators and defectors
-        nc = 0
-        nd = 0
-        nt = 0
 
         participants = list(self._players.edges(game))
         participants.append((game, game))
@@ -131,7 +127,7 @@ class bucketModel(generalModel):
         # assign payoffs
         self._assignPayoff(participants)
 
-    def reviseStrategy(self, player_index, tau=0.1, K=0.1):
+    def reviseStrategy(self, player_index):
         """
         revision protocol for player1 to change his strategy to the strategy of player2
 
@@ -144,9 +140,6 @@ class bucketModel(generalModel):
 
         payoff1 = self._players.nodes[player_index]["Last Payoff"]
         payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
-
-        self.tau = tau
-        self.K = K
 
         p = self._revisionProtocol(payoff1, payoff2)
 
@@ -176,14 +169,32 @@ class bucketModel(generalModel):
 
     def draw_graph(self):
         colourMap = []
-        for s in range(self.nplayers):
-            if self._players.nodes[s]["Strategy"] == 0:
-                colourMap.append('blue')
-            elif self._players.nodes[s]["Strategy"] == 1:
-                colourMap.append('orange')
-            elif self._players.nodes[s]["Strategy"] == 2:
-                colourMap.append('green')
+        sizeMap = []
 
-        pos = nx.kamada_kawai_layout(self._players)  # Seed for reproducible layout
-        nx.draw(self._players, pos, node_color=colourMap)
+        for node_index in self._players:
+            if self._players.nodes[node_index]["Strategy"] == 0:
+                colourMap.append('blue')
+            elif self._players.nodes[node_index]["Strategy"] == 1:
+                colourMap.append('orange')
+            elif self._players.nodes[node_index]["Strategy"] == 2:
+                colourMap.append('green')
+            sizeMap.append((self._players.degree(node_index)*5)**2)
+
+        pos = nx.spring_layout(self._players, seed=11)  # Seed for reproducible layout
+        plt.figure(1, figsize=(40, 40))
+        nx.draw(self._players, pos, node_color=colourMap, node_size=sizeMap, alpha=0.9)
         plt.show()
+
+    def updateM(self):
+        max = 0
+        min = math.inf
+        for node_index in self._players:
+            p = self._players.nodes[node_index]["Last Payoff"]
+            if p > max:
+                max = p
+            if p < min:
+                min = p
+        self.M = max - min
+
+
+
