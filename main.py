@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from pgg import bucketModel
 
 
-def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, show_plot):
+def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, show_plot):
     # rounds each player (approximately) plays
     strategies = np.zeros(shape=(rounds, 3))
 
@@ -37,8 +37,38 @@ def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, show_plot):
         plt.legend()
         plt.show()
 
+    return strategies[-last_amount:, ]
 
-oneRun(300, 20, 4, 1., 10, 0.5, 0.5, 0, True)
+
+
+players = 500
+rounds = 20
+z = 4
+c = 1.
+r = 5
+cop = 0.5
+defe = 0.5
+spit = 0
+last_amount = 5
+show_plot = False
+plot_data = [[], []]
+
+#fixed z
+for i in range(28):
+    r = ((i * 7.5) / 27)
+    last = oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot)
+    weird = r / (z + 1)
+    nc = sum(last[:, 0])
+    total = players * last_amount
+    plot_data[0].append(weird)
+    plot_data[1].append(nc/total)
+
+plt.ylabel("fraction of cooperators")
+plt.xlabel("η")
+plt.plot(plot_data[0], plot_data[1])
+plt.ylim(0, 1)
+plt.xlim(0, 1.5)
+plt.show()
 
 # 28 testes diferentes por graph
 # enhancment de 0 a 1.5
