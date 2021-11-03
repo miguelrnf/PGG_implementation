@@ -138,13 +138,13 @@ class bucketModel(generalModel):
         self.r = r
 
         # choose randomely players
-        random_player_indeces = np.random.choice(self.nplayers, nparticipants, replace=False)
+        random_player_indexes = np.random.choice(self.nplayers, nparticipants, replace=False)
 
         # count the cooperators and defectors
         nc = 0
         nd = 0
 
-        for i in random_player_indeces:
+        for i in random_player_indexes:
             if self.players[i].strategy == 0:
                 nc += 1
             elif self.players[i].strategy == 1:
@@ -152,10 +152,10 @@ class bucketModel(generalModel):
         nt = nparticipants - nc - nd
 
         # assign payoffs
-        for i in random_player_indeces:
+        for i in random_player_indexes:
             self._assignPayoff(self.players[i], nc, nd, nt)
 
-    def reviseStrategy(self, player_index, tau=0.1, K=0.1):
+    def reviseStrategy(self, player_index):
         """
         revision protocol for player1 to change his strategy to the strategy of player2
 
