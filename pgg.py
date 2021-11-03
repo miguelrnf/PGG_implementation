@@ -5,7 +5,7 @@ Created on Wed Feb  6 12:42:12 2019
 
 @author: paul
 """
-
+import math
 import numpy as np
 
 
@@ -68,23 +68,24 @@ class generalModel(object):
         assert isinstance(player_instance, player)
 
         spite_factor = 0.3
+        total_cost = (ncooperators) * self.c
+        pull_amount = total_cost/(ncooperators + ndefectors)
 
         # assign payoff depending on the strategy played by the player
         if player_instance.strategy == 0:
-            player_instance.payoff += - self.c + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+            player_instance.payoff += -self.c + pull_amount
 
         elif player_instance.strategy == 1:
-            player_instance.payoff += self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+            player_instance.payoff += pull_amount
 
-        elif player_instance.strategy == 2:  # TODO Change to troubleshoot
-            player_instance.payoff += - self.c * spite_factor + self.r * (self.c * ncooperators - (self.c * spite_factor) * ntroubles) / (
-                        ncooperators + ndefectors + ntroubles)
+        elif player_instance.strategy == 2:
+            player_instance.payoff += - self.c * spite_factor + pull_amount + self.c
 
     def _revisionProtocol(self, payoff1, payoff2):
-        change_likelihood = 1 / (1 + np.exp(payoff1 - payoff2 + self.tau) / self.K)
-        return change_likelihood
+        if payoff1 >= payoff2:
+            return 0
+
+        return (payoff2 - payoff1) / self.M
 
 
 class bucketModel(generalModel):
@@ -154,7 +155,7 @@ class bucketModel(generalModel):
         for i in random_player_indeces:
             self._assignPayoff(self.players[i], nc, nd, nt)
 
-    def reviseStragey(self, player_index, tau=0.1, K=0.1):
+    def reviseStrategy(self, player_index, tau=0.1, K=0.1):
         """
         revision protocol for player1 to change his strategy to the strategy of player2
 
@@ -165,9 +166,6 @@ class bucketModel(generalModel):
 
         payoff1 = self.players[player_index].payoff
         payoff2 = self.players[random_player_index].payoff
-
-        self.tau = tau
-        self.K = K
 
         p = self._revisionProtocol(payoff1, payoff2)
 
@@ -192,3 +190,15 @@ class bucketModel(generalModel):
         nt = self.nplayers - nc - nd
 
         return nc, nd, nt
+
+    def updateM(self):
+        max = 0
+        min = math.inf
+        for i in range(self.nplayers):
+            p = self._players[i].payoff
+            if p > max:
+                max = p
+            if p < min:
+                min = p
+
+        self.M = max - min

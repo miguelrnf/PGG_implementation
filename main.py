@@ -2,13 +2,13 @@ from random import random, randrange, uniform
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pgg_graph import bucketModel
+from pgg import bucketModel
 
 # total number of players
-nplayers = 500
+nplayers = 300
 
 # rounds each player (approximately) plays
-rounds = 500
+rounds = 20
 
 # Public goods game settings
 # number of players that is offered to play PGG
@@ -16,14 +16,15 @@ nparticipants = 4
 
 # cost of participating
 c = 1.
+
 # multipliaction factor for the pot
-r = 5
+r = 4.5
 
 # loners payoff
 # Allocate array to save the time evolution of strategies
 strategies = np.zeros(shape=(rounds,3))
 
-bm = bucketModel(nplayers, 0.5, 0.5, 0, nparticipants, c)
+bm = bucketModel(nplayers, 0.5, 0.5, 0)
 
 for j in range(rounds):
 
@@ -38,10 +39,6 @@ for j in range(rounds):
         bm.reviseStrategy(i)
 
     bm.clearPayoffs()
-    if j == 2 or j == 5 or j == 30:
-        bm.draw_graph()
-
-
 
 plt.title("Strategies played")
 plt.xlabel("round")
@@ -53,4 +50,3 @@ plt.ylim(0, nplayers)
 plt.xlim(0, rounds)
 plt.legend()
 plt.show()
-bm.draw_graph()
