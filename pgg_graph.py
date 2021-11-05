@@ -99,7 +99,7 @@ class bucketModel(generalModel):
             graph.nodes[s]["Cost"] = c / (graph.degree[s] + 1)
 
         self._players = graph
-        #self.draw_graph()
+        # self.draw_graph()
 
     def playGame(self, game, c, r):
         """
@@ -173,7 +173,7 @@ class bucketModel(generalModel):
         nd = 0
         nt = 0
 
-        for node in range(self.nplayers):
+        for node in self._players:
             if self._players.nodes[node]["Strategy"] == 0:
                 nc += 1
             elif self._players.nodes[node]["Strategy"] == 1:
