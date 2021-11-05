@@ -2,14 +2,14 @@ from random import random, randrange, uniform
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pgg import bucketModel
+from pgg_graph import bucketModel
 
 
 def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, show_plot):
     # rounds each player (approximately) plays
     strategies = np.zeros(shape=(rounds, 3))
 
-    bm = bucketModel(nplayers, cop, defe, spit)
+    bm = bucketModel(nplayers, cop, defe, spit, nparticipants, c)
 
     for j in range(rounds):
 
@@ -18,7 +18,7 @@ def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, 
         for game in range(int(nplayers/nparticipants)):
             bm.playGame(game, c, r)
 
-        bm.updateM()
+    #bm.updateM()
 
         for i in range(nplayers):
             bm.reviseStrategy(i)
@@ -42,20 +42,20 @@ def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, 
 
 
 players = 500
-rounds = 20
+rounds = 1000
 z = 4
-c = 1.
-r = 5
+c = 1
+r = 20
 cop = 0.5
 defe = 0.5
 spit = 0
-last_amount = 5
+last_amount = 150
 show_plot = False
 plot_data = [[], []]
 
 #fixed z
-for i in range(28):
-    r = ((i * 7.5) / 27)
+for i in range(10):
+    r = ((i * 20) / 9)
     last = oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot)
     weird = r / (z + 1)
     nc = sum(last[:, 0])
@@ -69,6 +69,3 @@ plt.plot(plot_data[0], plot_data[1])
 plt.ylim(0, 1)
 plt.xlim(0, 1.5)
 plt.show()
-
-# 28 testes diferentes por graph
-# enhancment de 0 a 1.5

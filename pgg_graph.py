@@ -17,7 +17,7 @@ class generalModel(object):
     that are shared thoughout the different models
     """
 
-    def _assignPayoff(self, participants):
+    def _assignPayoff(self, participants, host):
         """
         assign a payoff o one player of a public goods game
 
@@ -34,9 +34,11 @@ class generalModel(object):
         for node in participants:
             nodeIndex = node[1]
             if self._players.nodes[nodeIndex]["Strategy"] == 2:
-                total_cost -= self._players.nodes[nodeIndex]["Cost"]
+                total_cost -= self._players.nodes[host]["Cost"]
                 continue
-            total_cost += self._players.nodes[nodeIndex]["Cost"]
+            elif self._players.nodes[nodeIndex]["Strategy"] == 1:
+                continue
+            total_cost += self._players.nodes[host]["Cost"]
 
         pool_amount = (total_cost * self.r) / len(participants)
 
@@ -44,21 +46,21 @@ class generalModel(object):
             nodeIndex = node[1]
             # assign payoff depending on the strategy played by the player
             if self._players.nodes[nodeIndex]["Strategy"] == 0:
-                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] + pool_amount
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[host]["Cost"] + pool_amount
 
             elif self._players.nodes[nodeIndex]["Strategy"] == 1:
                 self._players.nodes[nodeIndex]["Last Payoff"] += pool_amount
 
             elif self._players.nodes[nodeIndex]["Strategy"] == 2:
-                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[nodeIndex]["Cost"] * spite_factor + pool_amount + self._players.nodes[nodeIndex]["Cost"]
+                self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[host]["Cost"] * spite_factor + pool_amount + self._players.nodes[host]["Cost"]
 
             self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
-    def _revisionProtocol(self, payoff1, payoff2):
-        if payoff1 > payoff2:
+    def _revisionProtocol(self, payoff1, payoff2, M):
+        if payoff1 >= payoff2:
             return 0
-
-        return (payoff2 - payoff1) / self.M
+        else:
+            return (payoff2 - payoff1) / M
 
 
 class bucketModel(generalModel):
@@ -97,7 +99,7 @@ class bucketModel(generalModel):
             graph.nodes[s]["Cost"] = c / (graph.degree[s] + 1)
 
         self._players = graph
-        self.draw_graph()
+        #self.draw_graph()
 
     def playGame(self, game, c, r):
         """
@@ -125,7 +127,7 @@ class bucketModel(generalModel):
 
 
         # assign payoffs
-        self._assignPayoff(participants)
+        self._assignPayoff(participants, game)
 
     def reviseStrategy(self, player_index):
         """
@@ -135,13 +137,27 @@ class bucketModel(generalModel):
         """
         # choose a randomely players
         size = len(self._players.edges(player_index))
+        neighbours = list(self._players.edges(player_index))
         random_player_index = np.random.choice(size)
-        random_player_index = list(self._players.edges(player_index))[random_player_index][1]
+        random_player_index = neighbours[random_player_index][1]
+        neighbours.append((player_index, player_index))
+
+        max = 0
+        min = math.inf
+        for t in neighbours:
+            p = self._players.nodes[t[1]]["Last Payoff"]
+            if p > max:
+                max = p
+            if p < min:
+                min = p
+        M = max - min
+
+
 
         payoff1 = self._players.nodes[player_index]["Last Payoff"]
         payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
 
-        p = self._revisionProtocol(payoff1, payoff2)
+        p = self._revisionProtocol(payoff1, payoff2, M)
 
         change = np.random.choice([False, True], p=[1 - p, p])
 
