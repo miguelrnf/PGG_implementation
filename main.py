@@ -72,30 +72,46 @@ if __name__ == '__main__':
     graph = True
     resolution = 40
     repetitions = 15
+    enhancement = False
 
-    # fixed z
-    mx = 2 * (z + 1)
-    for i in range(resolution):
-        r = ((i * mx) / (resolution - 1))
-        #pbar = tqdm(range(repetitions))
-        #pbar.set_description("Processing %s" % i)
-        arg = (players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph)
-        with Pool(4) as p:
-            res = p.starmap(oneRun, [arg] * repetitions)
-            last = [ent for sublist in res for ent in sublist]
 
-        #for j in pbar:
-        #    last.extend(oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph))
-        weird = r / (z + 1)
-        plot_data[0].append(weird)
-        frac = float(sum(last)) / float(players * last_amount * repetitions)
-        plot_data[1].append(frac)
-        plot_data_graph(plot_data, r)
-    plot_data_graph(plot_data, "Final")
+    if enhancement:
+        # fixed z
+        mx = 2 * (z + 1)
+        for i in range(resolution):
+            r = ((i * mx) / (resolution - 1))
+            #pbar = tqdm(range(repetitions))
+            #pbar.set_description("Processing %s" % i)
+            arg = (players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph)
+            with Pool(4) as p:
+                res = p.starmap(oneRun, [arg] * repetitions)
+                last = [ent for sublist in res for ent in sublist]
 
-plt.ylabel("fraction of cooperators")
-plt.xlabel("η")
-plt.plot(plot_data[0], plot_data[1])
-plt.ylim(0, 1)
-plt.xlim(0, 1.5)
-plt.show()
+            #for j in pbar:
+            #    last.extend(oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph))
+            weird = r / (z + 1)
+            plot_data[0].append(weird)
+            frac = float(sum(last)) / float(players * last_amount * repetitions)
+            plot_data[1].append(frac)
+            plot_data_graph(plot_data, r)
+        plot_data_graph(plot_data, "Final")
+
+        plt.ylabel("fraction of cooperators")
+        plt.xlabel("η")
+        plt.plot(plot_data[0], plot_data[1])
+        plt.ylim(0, 1)
+        plt.xlim(0, 1.5)
+        plt.show()
+
+    else:
+        players = 500
+        rounds = 1500
+        z = 4
+        c = 1.
+        r = 5
+        cop = 0.5
+        defe = 0.5
+        spit = 0.0
+        show_plot = True
+        graph = True
+        oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph)
