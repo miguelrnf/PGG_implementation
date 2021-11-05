@@ -11,6 +11,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
+
 class generalModel(object):
     """
     This is the base class for different public goods game model. It holds methods and properties
@@ -28,6 +29,9 @@ class generalModel(object):
 
 
         spite_factor = 0.3
+        rep_factor_c = 1
+        rep_factor_d = -0.5
+        rep_factor_s = -1
 
         total_cost = 0
 
@@ -47,16 +51,17 @@ class generalModel(object):
             # assign payoff depending on the strategy played by the player
             if self._players.nodes[nodeIndex]["Strategy"] == 0:
                 self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[host]["Cost"] + pool_amount
-
+                self._players.nodes[nodeIndex]["Reputation"] += rep_factor_c
             elif self._players.nodes[nodeIndex]["Strategy"] == 1:
                 self._players.nodes[nodeIndex]["Last Payoff"] += pool_amount
-
+                self._players.nodes[nodeIndex]["Reputation"] += rep_factor_d
             elif self._players.nodes[nodeIndex]["Strategy"] == 2:
                 self._players.nodes[nodeIndex]["Last Payoff"] += -self._players.nodes[host]["Cost"] * spite_factor + pool_amount + self._players.nodes[host]["Cost"]
+                self._players.nodes[nodeIndex]["Reputation"] += rep_factor_s
 
             self._players.nodes[nodeIndex]["Knowledge"] += self._players.nodes[nodeIndex]["Last Payoff"]
 
-    def _revisionProtocol(self, payoff1, payoff2, M):
+    def _revisionProtocol(self, payoff1, payoff2, reputation1, reputation2, M):
         if payoff1 >= payoff2:
             return 0
         else:
@@ -93,6 +98,7 @@ class bucketModel(generalModel):
             graph.nodes[s]["Strategy"] = strategies[s]
             graph.nodes[s]["Knowledge"] = random.uniform(0, 100)
             graph.nodes[s]["Last Payoff"] = 0
+            graph.nodes[s]["Reputation"] = 0
             if strategies[s] == 1:
                 graph.nodes[s]["Cost"] = 0
                 continue
@@ -137,36 +143,50 @@ class bucketModel(generalModel):
         """
         # choose a randomely players
         size = len(self._players.edges(player_index))
-        neighbours = list(self._players.edges(player_index))
-        random_player_index = np.random.choice(size)
-        random_player_index = neighbours[random_player_index][1]
-        neighbours.append((player_index, player_index))
+        if size > 0:
+            neighbours = list(self._players.edges(player_index))
+            random_player_index = np.random.choice(size)
+            random_player_index = neighbours[random_player_index][1]
+            neighbours.append((player_index, player_index))
 
-        max = 0
-        min = math.inf
-        for t in neighbours:
-            p = self._players.nodes[t[1]]["Last Payoff"]
-            if p > max:
-                max = p
-            if p < min:
-                min = p
-        M = max - min
+            max = 0
+            min = math.inf
+            for t in neighbours:
+                p = self._players.nodes[t[1]]["Last Payoff"]
+                if p > max:
+                    max = p
+                if p < min:
+                    min = p
+            M = max - min
 
 
 
-        payoff1 = self._players.nodes[player_index]["Last Payoff"]
-        payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
+            payoff1 = self._players.nodes[player_index]["Last Payoff"]
+            payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
+            reputation1 = self._players.nodes[player_index]["Reputation"]
+            reputation2 = self._players.nodes[random_player_index]["Reputation"]
+            p = self._revisionProtocol(payoff1, payoff2, reputation1, reputation2, M)
 
-        p = self._revisionProtocol(payoff1, payoff2, M)
+            change = np.random.choice([False, True], p=[1 - p, p])
 
-        change = np.random.choice([False, True], p=[1 - p, p])
-
-        if change:
-            self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
+            if change:
+                self._players.nodes[player_index]["Strategy"] = self._players.nodes[random_player_index]["Strategy"]
 
     def clearPayoffs(self):
-        for i in range(self.nplayers):
+        for i in self._players:
             self._players.nodes[i]["Last Payoff"] = 0
+
+    def cutReputations(self, node):
+        cut_factor = 5
+        rep_1 = self._players.nodes[node]["Reputation"]
+        to_remove = []
+        for u, v in self._players.edges(node):
+            rep_2 = self._players.nodes[v]["Reputation"]
+            if abs(rep_1 - rep_2) >= cut_factor and self._players.nodes[v]["Strategy"] != 0:
+                to_remove.append(v)
+
+        for v in to_remove:
+            self._players.remove_edge(node, v)
 
     def countStrategies(self):
         nc = 0
@@ -186,31 +206,23 @@ class bucketModel(generalModel):
     def draw_graph(self):
         colourMap = []
         sizeMap = []
-
-        for node_index in self._players:
-            if self._players.nodes[node_index]["Strategy"] == 0:
+        for s in self._players:
+            if self._players.nodes[s]["Strategy"] == 0:
                 colourMap.append('blue')
-            elif self._players.nodes[node_index]["Strategy"] == 1:
+            elif self._players.nodes[s]["Strategy"] == 1:
                 colourMap.append('orange')
-            elif self._players.nodes[node_index]["Strategy"] == 2:
+            elif self._players.nodes[s]["Strategy"] == 2:
                 colourMap.append('green')
-            sizeMap.append((self._players.degree(node_index)*5)**2)
+            sizeMap.append((self._players.degree(s)*5)**2)
 
         pos = nx.spring_layout(self._players, seed=11)  # Seed for reproducible layout
         plt.figure(1, figsize=(40, 40))
         nx.draw(self._players, pos, node_color=colourMap, node_size=sizeMap, alpha=0.9)
         plt.show()
 
-    def updateM(self):
-        max = 0
-        min = math.inf
-        for node_index in self._players:
-            p = self._players.nodes[node_index]["Last Payoff"]
-            if p > max:
-                max = p
-            if p < min:
-                min = p
-        self.M = max - min
+    def rm_edgeless_and_draw_graph(self, degree):
+        to_be_removed = [x for x in self._players.nodes() if self._players.degree(x) < degree]
 
-
-
+        for x in to_be_removed:
+            self._players.remove_node(x)
+        self.draw_graph()

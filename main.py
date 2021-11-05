@@ -25,11 +25,13 @@ def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, 
 
         for game in range(temp):
             bm.playGame(game, c, r)
+            bm.cutReputations(game)
 
     #bm.updateM()
 
         for p in range(nplayers):
             bm.reviseStrategy(p)
+            # bm.cutReputations(game)
 
         bm.clearPayoffs()
 
@@ -102,6 +104,7 @@ if __name__ == '__main__':
         plt.ylim(0, 1)
         plt.xlim(0, 1.5)
         plt.show()
+        bm.rm_edgeless_and_draw_graph(5)
 
     else:
         players = 500
