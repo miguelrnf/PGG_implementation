@@ -159,8 +159,6 @@ class bucketModel(generalModel):
                     min = p
             M = max - min
 
-
-
             payoff1 = self._players.nodes[player_index]["Last Payoff"]
             payoff2 = self._players.nodes[random_player_index]["Last Payoff"]
             reputation1 = self._players.nodes[player_index]["Reputation"]
@@ -177,7 +175,7 @@ class bucketModel(generalModel):
             self._players.nodes[i]["Last Payoff"] = 0
 
     def cutReputations(self, node):
-        cut_factor = 5
+        cut_factor = 20
         rep_1 = self._players.nodes[node]["Reputation"]
         to_remove = []
         for u, v in self._players.edges(node):
@@ -188,10 +186,13 @@ class bucketModel(generalModel):
         for v in to_remove:
             self._players.remove_edge(node, v)
 
-    def countStrategies(self):
+    def countStrategies(self, reputation):
         nc = 0
         nd = 0
         nt = 0
+        nc2 = 0
+        nd2 = 0
+        nt2 = 0
 
         for node in self._players:
             if self._players.nodes[node]["Strategy"] == 0:
@@ -201,7 +202,17 @@ class bucketModel(generalModel):
             elif self._players.nodes[node]["Strategy"] == 2:
                 nt += 1
 
-        return nc, nd, nt
+        if reputation:
+            for node in self._players:
+                if self._players.degree(node) > 1:
+                    if self._players.nodes[node]["Strategy"] == 0:
+                        nc2 += 1
+                    elif self._players.nodes[node]["Strategy"] == 1:
+                        nd2 += 1
+                    elif self._players.nodes[node]["Strategy"] == 2:
+                        nt2 += 1
+
+        return nc, nd, nt, nc2, nd2, nt2
 
     def draw_graph(self):
         colourMap = []

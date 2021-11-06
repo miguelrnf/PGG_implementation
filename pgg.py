@@ -189,7 +189,7 @@ class bucketModel(generalModel):
                 nd += 1
         nt = self.nplayers - nc - nd
 
-        return nc, nd, nt
+        return nc, nd, nt, 0, 0, 0
 
     def updateM(self):
         max = 0
