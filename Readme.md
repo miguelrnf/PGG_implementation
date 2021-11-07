@@ -3,6 +3,7 @@
 PGG simulation is a Python script capable of running a PGG game with or without an initial network. 
 It also supports three different strategies, Cooperator, Defector and Spiteful
 
+[Github Repository](https://github.com/miguelrnf/PGG_implementation)
 ## Installation
 
 No need to install, just follow usage
