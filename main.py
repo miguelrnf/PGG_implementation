@@ -1,40 +1,33 @@
-from random import random, randrange, uniform
-
 import numpy as np
 import matplotlib.pyplot as plt
 from pgg import bucketModel as bucket
 from pgg_graph import bucketModel as bucketg
-from tqdm import tqdm
 from multiprocessing import Pool
 
 
-def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation):
-    # rounds each player (approximately) plays
-    strategies = np.zeros(shape=(rounds, 6))
+def run_PGG(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation, cut_factor):
+    strategies = np.zeros(shape=(rounds + 1, 6))
 
     if graph:
-        bm = bucketg(nplayers, cop, defe, spit, nparticipants, c)
+        bm = bucketg(nplayers, cop, defe, spit, nparticipants, c, r)
         temp = nplayers
     else:
-        bm = bucket(nplayers, cop, defe, spit)
-        temp = int(nplayers/nparticipants)
+        bm = bucket(nplayers, cop, defe, r, c)
+        temp = int(nplayers / nparticipants)
 
+    strategies[0, :] = cop * nplayers, defe * nplayers, spit * nplayers, cop * nplayers, defe * nplayers, spit * nplayers
     for j in range(rounds):
-
-        strategies[j, :] = bm.countStrategies(reputation)
-
         for game in range(temp):
-            bm.playGame(game, c, r)
+            bm.playGame(game)
             if reputation:
-                bm.cutReputations(game)
-
-    #bm.updateM()
+                bm.cutReputations(game, cut_factor)
 
         for p in range(nplayers):
             bm.reviseStrategy(p)
-            # bm.cutReputations(game)
 
+        strategies[j + 1, :] = bm.countStrategies(reputation)
         bm.clearPayoffs()
+
     if reputation:
         result = [strategies[-1:, 3], strategies[-1:, 4], strategies[-1:, 5]]
     else:
@@ -42,77 +35,80 @@ def oneRun(nplayers, rounds, nparticipants, c, r, cop, defe, spit, last_amount, 
 
     if show_plot:
         plt.title("Strategies played")
-        plt.xlabel("round")
-        plt.ylabel("amount")
-        plt.plot(np.arange(rounds), strategies[:, 0], label="Cooperators")
-        plt.plot(np.arange(rounds), strategies[:, 1], label="Defectors")
-        plt.plot(np.arange(rounds), strategies[:, 2], label="Spiteful")
+        plt.xlabel("Round")
+        plt.ylabel("Players")
+        plt.plot(np.arange(rounds + 1), strategies[:, 0], label="Cooperators")
+        plt.plot(np.arange(rounds + 1), strategies[:, 1], label="Defectors")
+        if spit > 0:
+            plt.plot(np.arange(rounds + 1), strategies[:, 2], label="Spiteful")
         plt.ylim(0, nplayers)
         plt.xlim(0, rounds)
         plt.legend()
         plt.show()
 
         if reputation:
-            plt.title("Strategies played (community > 2)")
-            plt.xlabel("round")
-            plt.ylabel("amount")
-            plt.plot(np.arange(rounds-last_amount, rounds), strategies[-last_amount:, 3], label="Cooperators")
-            plt.plot(np.arange(rounds-last_amount, rounds), strategies[-last_amount:, 4], label="Defectors")
-            plt.plot(np.arange(rounds-last_amount, rounds), strategies[-last_amount:, 5], label="Spiteful")
+            plt.title("Strategies played (community > 1)")
+            plt.xlabel("Round")
+            plt.ylabel("Players")
+            plt.plot(np.arange(rounds - last_amount, rounds), strategies[-last_amount:, 3], label="Cooperators")
+            plt.plot(np.arange(rounds - last_amount, rounds), strategies[-last_amount:, 4], label="Defectors")
+            plt.plot(np.arange(rounds - last_amount, rounds), strategies[-last_amount:, 5], label="Spiteful")
             mxx = 0
-            for i in range(len(strategies)-last_amount, len(strategies)):
-                te = int(strategies[i:i+1, 3] + strategies[i:i+1:, 4] + strategies[i:i+1:, 5])
+            for x in range(len(strategies) - last_amount, len(strategies)):
+                te = int(strategies[x:x + 1, 3] + strategies[x:x + 1:, 4] + strategies[x:x + 1:, 5])
                 if te > mxx:
                     mxx = te
             plt.ylim(0, mxx)
-            plt.xlim(rounds-last_amount, rounds)
+            plt.xlim(rounds - last_amount, rounds)
             plt.legend()
             plt.show()
 
-    #bm.rm_edgeless_and_draw_graph(1)
-    #bm.rm_edgeless_and_draw_graph(3)
+    if reputation:
+        bm.rm_edgeless_and_draw_graph(1)
+
     return result
 
 
-def plot_data_graph(plot_data, title):
+def plot_data_graph(data, title):
     plt.title(title)
     plt.ylabel("fraction of cooperators")
     plt.xlabel("η")
-    plt.plot(plot_data[0], plot_data[1])
+    plt.plot(data[0], data[1])
     plt.ylim(-0.05, 1.05)
-    # plt.xlim(0, 1.55)
     plt.show()
 
 
 if __name__ == '__main__':
-    players = 1000
-    rounds = 300
-    z = 4
-    c = 1.
-    r = 5
-    cop = 0.335
-    defe = 0.335
-    spit = 0.33
-    last_amount = 50
-    show_plot = False
-    plot_data = [[], []]
-    graph = True
-    resolution = 28
-    repetitions = 8
-    enhancement = True
-    reputation = True
+    players = 100  # Number of players that play PGG
+    rounds = 50  # Number of rounds in the PGG
+    z = 4  # If graph == True z is the average degree of the network else z is the number of players in each PGG
+    c = 1  # Cost of cooperators to play the PGG
+    r = 5  # Shared pool multiplier
+    cop = 0.5  # Approximate initial fraction of cooperators
+    defe = 0.5  # Approximate initial fraction of defectors
+    spit = 0.0  # Approximate initial fraction of spitefuls
+    last_amount = 10  # Number of rounds to take into account on the averages
+    show_plot = False  # If the graph of evolution of the three strategies is shown
+    graph = True  # If the simulation is run with an initial graph
+    enhancement = True  # If false run only sim_repeat separated times,
+    #                      if true calculate and show the evolution of the enhancement factor
+    #                      (WARNING: Might take a lot of time and use a lot of resources)
+    cpu_cores = 4  # How many cpu cores to use, only used if enhancement = True
 
+    sim_repeat = 1  # Only used if enhancement = False, how many times to run the simulation
+    reputation = False  # If true, use reputation and cut ties
+    cut_factor = 20  # How much the difference in reputation before cutting the edge
 
     if enhancement:
-        # fixed z
+        resolution = 10  # How many points on the evolution of the enhancement factor graph to show
+        repetitions = 2  # How many repetitions per point to calculate average
+        plot_data = [[], []]  # Empty variable to hold the plot data
         mx = 2 * (z + 1)
         for i in range(resolution):
             r = ((i * mx) / (resolution - 1))
-            #pbar = tqdm(range(repetitions))
-            #pbar.set_description("Processing %s" % i)
-            arg = (players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation)
-            with Pool(4) as p:
-                res = p.starmap(oneRun, [arg] * repetitions)
+            arg = (players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation, cut_factor)
+            with Pool(cpu_cores) as p:
+                res = p.starmap(run_PGG, [arg] * repetitions)
             if reputation:
                 nc, total = 0, 0
                 for l in range(len(res)):
@@ -122,30 +118,11 @@ if __name__ == '__main__':
             else:
                 last = [ent for sublist in res for ent in sublist]
                 frac = float(sum(last)) / float(players * last_amount * repetitions)
-                #for j in pbar:
-                #    last.extend(oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph))
             weird = r / (z + 1)
             plot_data[0].append(weird)
-
             plot_data[1].append(frac)
-            plot_data_graph(plot_data, r)
+            plot_data_graph(plot_data, "r = " + str(r))
         plot_data_graph(plot_data, "Final")
-
-        plt.ylabel("fraction of cooperators")
-        plt.xlabel("η")
-        plt.plot(plot_data[0], plot_data[1])
-        plt.ylim(0, 1)
-        plt.xlim(0, 1.5)
-        plt.show()
     else:
-        players = 1000
-        rounds = 100
-        z = 4
-        c = 1.
-        r = 5
-        cop = 0.34
-        defe = 0.33
-        spit = 0.33
-        show_plot = True
-        graph = True
-        oneRun(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation)
+        for k in range(sim_repeat):
+            run_PGG(players, rounds, z, c, r, cop, defe, spit, last_amount, show_plot, graph, reputation, cut_factor)
